@@ -27,6 +27,17 @@ class AssemblyPlan:
     metadata_path: Path
 
 
+@dataclass(frozen=True)
+class ResolvedSection:
+    input_path: Path
+    title: str
+    start_seconds: float
+    duration_seconds: float
+    gap_after_seconds: float
+    audio_fade_in_seconds: float
+    audio_fade_out_seconds: float
+
+
 def load_manifest(manifest_path: Path | str) -> dict[str, Any]:
     path = Path(manifest_path).expanduser().resolve()
     with path.open("r", encoding="utf-8") as handle:
@@ -165,4 +176,3 @@ def resolve_section_duration(
     if resolved <= 0:
         raise ValueError("Section duration must be greater than zero")
     return resolved
-

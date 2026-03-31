@@ -9,6 +9,7 @@ from typing import Iterable
 from .assembly import (
     AssemblyManifest,
     AssemblyPlan,
+    ResolvedSection,
     TimelineSection,
     build_filter_complex,
     normalize_title,
@@ -33,6 +34,15 @@ class ManifestValidationResult:
     source_count: int
     cut_count: int
     section_count: int | None = None
+
+
+@dataclass(frozen=True)
+class AssemblyPlanSummary:
+    manifest_path: Path
+    output_path: Path
+    section_count: int
+    sections: list[ResolvedSection]
+    ffmpeg_args: list[str]
 
 
 class VideoEditingService:
@@ -284,6 +294,51 @@ class VideoEditingService:
             ]
         )
         return AssemblyPlan(ffmpeg_args=ffmpeg_args, metadata_path=metadata_path)
+
+    def summarize_assembly_plan(
+        self,
+        manifest_path: Path | str,
+        output_path: Path | str,
+        gap_seconds: float | None = None,
+        audio_fade_seconds: float | None = None,
+        overwrite: bool = True,
+    ) -> AssemblyPlanSummary:
+        resolved_manifest_path = Path(manifest_path).expanduser().resolve()
+        target = Path(output_path).expanduser().resolve()
+        manifest = self.build_assembly_manifest(
+            manifest_path=resolved_manifest_path,
+            gap_seconds=gap_seconds,
+            audio_fade_seconds=audio_fade_seconds,
+        )
+        plan = self.build_assembly_plan(
+            manifest_path=resolved_manifest_path,
+            output_path=target,
+            gap_seconds=gap_seconds,
+            audio_fade_seconds=audio_fade_seconds,
+            overwrite=overwrite,
+        )
+        try:
+            sections = [
+                ResolvedSection(
+                    input_path=section.input_path,
+                    title=section.title,
+                    start_seconds=section.start_seconds,
+                    duration_seconds=section.duration_seconds,
+                    gap_after_seconds=section.gap_after_seconds,
+                    audio_fade_in_seconds=section.audio_fade_in_seconds,
+                    audio_fade_out_seconds=section.audio_fade_out_seconds,
+                )
+                for section in manifest.sections
+            ]
+            return AssemblyPlanSummary(
+                manifest_path=resolved_manifest_path,
+                output_path=target,
+                section_count=len(sections),
+                sections=sections,
+                ffmpeg_args=plan.ffmpeg_args,
+            )
+        finally:
+            plan.metadata_path.unlink(missing_ok=True)
 
     def assemble_from_manifest(
         self,

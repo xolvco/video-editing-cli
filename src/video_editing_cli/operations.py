@@ -14,6 +14,22 @@ def validate_manifest(manifest_path: Path) -> ManifestValidationResult:
     return DEFAULT_SERVICE.validate_manifest(manifest_path)
 
 
+def plan_assembly(
+    manifest_path: Path,
+    output_path: Path,
+    gap_seconds: float | None = None,
+    audio_fade_seconds: float | None = None,
+    overwrite: bool = True,
+) -> object:
+    return DEFAULT_SERVICE.summarize_assembly_plan(
+        manifest_path=manifest_path,
+        output_path=output_path,
+        gap_seconds=gap_seconds,
+        audio_fade_seconds=audio_fade_seconds,
+        overwrite=overwrite,
+    )
+
+
 def trim_video(
     input_path: Path,
     output_path: Path,
