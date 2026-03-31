@@ -37,12 +37,88 @@ def test_concat_parser_collects_multiple_inputs() -> None:
     assert args.markers is True
 
 
+def test_concat_parser_accepts_input_dir() -> None:
+    parser = build_parser()
+    args = parser.parse_args(["concat", "joined.mp4", "--input-dir", "clips", "--json-preview", "--full-preview"])
+
+    assert args.command == "concat"
+    assert args.output == "joined.mp4"
+    assert args.inputs == []
+    assert args.input_dir == "clips"
+    assert args.json_preview is True
+    assert args.full_preview is True
+
+
 def test_concat_requires_two_inputs(tmp_path: Path) -> None:
     clip = tmp_path / "clip.mp4"
     clip.write_text("placeholder", encoding="utf-8")
 
     with pytest.raises(ValueError):
         concat_videos([clip], tmp_path / "out.mp4")
+
+
+def test_concat_input_resolution_rejects_both_inputs_and_directory(tmp_path: Path) -> None:
+    from video_editing_cli.commands.concat import _resolve_input_paths
+
+    with pytest.raises(ValueError):
+        _resolve_input_paths(["a.mp4", "b.mp4"], str(tmp_path))
+
+
+def test_concat_input_resolution_uses_sorted_directory_files(tmp_path: Path) -> None:
+    from video_editing_cli.commands.concat import _resolve_input_paths
+
+    (tmp_path / "b_clip.mp4").write_text("b", encoding="utf-8")
+    (tmp_path / "a_clip.mp4").write_text("a", encoding="utf-8")
+    (tmp_path / "notes.txt").write_text("ignore", encoding="utf-8")
+
+    resolved = _resolve_input_paths([], str(tmp_path))
+
+    assert [Path(path).name for path in resolved] == ["a_clip.mp4", "b_clip.mp4"]
+
+
+def test_concat_json_preview_builds_manifest_style_payload() -> None:
+    from video_editing_cli.commands.concat import _build_json_preview_payload
+
+    payload = _build_json_preview_payload(
+        input_paths=["clips\\b_clip.mp4", "clips\\a_clip.mp4"],
+        output="joined.mp4",
+        start="00:00:03",
+        end="00:00:10",
+        spacer_seconds=2.0,
+        audio_fade_seconds=0.5,
+        markers=True,
+        full=False,
+    )
+
+    assert payload["version"] == 1
+    assert "defaults" not in payload
+    assert payload["items"][0]["start"] == "00:00:03"
+    assert payload["items"][0]["end"] == "00:00:10"
+    assert payload["items"][0]["marker"] == "b clip"
+    assert payload["output"]["path"] == "joined.mp4"
+
+
+def test_concat_json_preview_full_includes_defaults_and_explicit_fields() -> None:
+    from video_editing_cli.commands.concat import _build_json_preview_payload
+
+    payload = _build_json_preview_payload(
+        input_paths=["clips\\clip.mp4"],
+        output="joined.mp4",
+        start=None,
+        end=None,
+        spacer_seconds=2.0,
+        audio_fade_seconds=0.5,
+        markers=False,
+        full=True,
+    )
+
+    assert payload["defaults"]["spacer_mode"] == "black"
+    assert payload["defaults"]["spacer_seconds"] == 2.0
+    assert payload["defaults"]["audio_fade_in_seconds"] == 0.5
+    assert payload["items"][0]["start"] is None
+    assert payload["items"][0]["end"] is None
+    assert payload["items"][0]["marker"] is None
+    assert payload["items"][0]["audio_fade_in_seconds"] == 0.5
 
 
 def test_concat_rejects_end_before_start(tmp_path: Path) -> None:

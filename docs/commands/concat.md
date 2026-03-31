@@ -15,6 +15,24 @@ Build one linear output from multiple videos.
 video-edit concat output.mp4 clip1.mp4 clip2.mp4 clip3.mp4
 ```
 
+Build from a folder of videos:
+
+```bash
+video-edit concat output.mp4 --input-dir clips
+```
+
+Generate a manifest-style JSON preview instead of rendering:
+
+```bash
+video-edit concat output.mp4 --input-dir clips --json-preview
+```
+
+Generate a full preview with explicit defaults and editable fields:
+
+```bash
+video-edit concat output.mp4 --input-dir clips --json-preview --full-preview
+```
+
 Planned refined mode:
 
 ```bash
@@ -24,6 +42,10 @@ video-edit concat output.mp4 --playlist playlist.json
 ## Notes
 
 - Requires at least two input files
+- You can provide explicit input files or `--input-dir`, but not both at the same time
+- `--input-dir` discovers supported video files and sorts them by filename
+- `--json-preview` prints a bare-bones manifest-style JSON scaffold and exits without rendering
+- `--json-preview --full-preview` prints a fuller scaffold with defaults and explicit editable fields
 - Stream copy is the default when compatible
 - Use `--reencode` if the inputs do not concatenate cleanly
 - If you use `--start`, `--end`, `--spacer-seconds`, `--audio-fade-seconds`, or `--markers`,
@@ -31,6 +53,9 @@ video-edit concat output.mp4 --playlist playlist.json
 - `--markers` creates clip-start chapter markers from normalized filenames
 - filename marker labels replace underscores and hyphens with spaces
 - `--start` and `--end` are applied to each input clip using timecodes relative to that source video
+- `--json-preview` is useful when you want a quick generated playlist that you can reorder and edit by hand
+- bare preview is optimized for quick cleanup and reordering
+- full preview is optimized for exposing the editable structure and available knobs up front
 - In v1 planning, quick mode may grow support for:
   - optional black spacers between clips
   - optional clip-start markers derived from normalized filenames
