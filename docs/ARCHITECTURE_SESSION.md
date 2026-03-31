@@ -86,6 +86,7 @@ Fields:
 - `gap_after_seconds`
 - `audio_fade_in_seconds`
 - `audio_fade_out_seconds`
+- `audio_mix_override`
 - `marker`
 - `overlay`
 
@@ -100,6 +101,7 @@ Fields:
 - `cuts`
 - `sections`
 - `defaults`
+- `audio`
 - `output`
 
 ### `RenderPreset`
@@ -116,6 +118,61 @@ Fields:
 - `audio_channels`
 - `fit_strategy`
 - `codec_profile`
+
+### `LookPreset`
+
+Represents a named visual treatment for the assembled output.
+
+Fields:
+
+- `id`
+- `description`
+- `global_filter_strategy`
+- `harmonization_strategy`
+
+### `HarmonizationStrategy`
+
+Represents the policy used to reduce distracting color jumps between adjacent clips.
+
+Fields:
+
+- `enabled`
+- `strength`
+- `scene_transition_behavior`
+
+### `AudioMixPreset`
+
+Represents the default audio relationship for an assembled output.
+
+Fields:
+
+- `id`
+- `description`
+- `music_level_policy`
+- `source_audio_level_policy`
+- `ducking_strategy`
+- `normalization_strategy`
+
+### `AudioMixOverride`
+
+Represents a section-level exception to the default audio mix.
+
+Fields:
+
+- `mode`
+- `fade_in_seconds`
+- `fade_out_seconds`
+
+### `AudioBed`
+
+Represents a soundtrack or music track supplied for the assembly.
+
+Fields:
+
+- `path`
+- `start`
+- `offset`
+- `gain_db`
 
 ### `RenderMode`
 
@@ -177,6 +234,8 @@ Responsibility:
 - build cut plans
 - build timeline plans
 - resolve render presets
+- resolve look presets and harmonization policy
+- resolve audio bed, normalization, and section mix policy
 - compute chapter markers
 - compute transitions, gaps, fades, and overlays
 - optionally nudge cuts for cue-aligned timing later
@@ -193,6 +252,8 @@ Responsibility:
 
 - convert plans into FFmpeg command graphs
 - support preview and final render modes
+- apply global look presets and clip-to-clip harmonization
+- normalize and mix soundtrack audio with section audio according to policy
 - optionally create prepared intermediate assets
 - render output
 - optionally dry-run and print plans
@@ -292,10 +353,19 @@ Example shape:
     "audio_fade_in_seconds": 0.04,
     "audio_fade_out_seconds": 0.04
   },
+  "audio": {
+    "music_path": "track.wav",
+    "mix_preset": "music-led"
+  },
   "sections": [
     {
       "cut": "intro-look",
       "title": "Intro"
+    },
+    {
+      "cut": "ambient-break",
+      "title": "Ambient break",
+      "audio_mix_override": "source-only"
     }
   ],
   "output": {
@@ -385,6 +455,47 @@ Reason:
 - presets help keep pipeline behavior consistent
 - explicit raw output settings can be added later as an advanced escape hatch
 
+### Decision 9
+
+Look presets should automatically include color harmonization by default.
+
+Reason:
+
+- fast-cut edits should feel cohesive without forcing the user to tune color controls first
+- the library should reduce distracting color jumps between clips as part of doing the obvious thing
+- users can opt out, but the default path should favor speed and visual continuity
+
+### Decision 10
+
+V1 color work should target continuity and style, not full lighting repair.
+
+Reason:
+
+- reducing visual whiplash between clips is a practical and testable first step
+- full bad-lighting correction is a deeper grading problem and can come later
+- preset-driven continuity fits the current library-first, workflow-first direction
+
+### Decision 11
+
+Audio should default to a global mix preset with section-level overrides.
+
+Reason:
+
+- most fast-cut edits want one overall audio intent rather than hand-mixing every section
+- some sections still need explicit exceptions such as ambient-only or music-only moments
+- this keeps the common workflow fast while preserving editorial control where it matters
+- in v1, these exceptions should be assigned per clip or section as the timeline is assembled
+
+### Decision 12
+
+The library should support music-plus-source-audio workflows, not just one audio source.
+
+Reason:
+
+- assembled videos often combine a soundtrack, source ambience, and occasional call-to-action or scene-driven audio
+- users need the library to manage the default blend rather than manually rebuilding the mix for each cut
+- audio behavior belongs in assembly planning and rendering, not scattered across low-level utilities
+
 ## Output contract
 
 Recommended primary outputs:
@@ -426,6 +537,8 @@ Goals:
 - assemble whole clips and cut segments into a final sequence
 - support repeated editorial structure like gaps, fades, and markers
 - support preview and final render modes
+- support global look presets that automatically harmonize clip-to-clip color continuity
+- support global audio mix presets with section-level overrides
 - produce the v1 output contract:
   - rendered video
   - resolved plan JSON
@@ -438,6 +551,23 @@ Goals:
 
 V1 is not trying to replace an editor. It is trying to make repetitive, structured assembly much faster and more reliable.
 
+Initial look direction:
+
+- apply named look presets at the assembly/render level
+- automatically pair each look preset with default-on harmonization
+- allow an explicit opt-out for users who do not want harmonization
+- focus on reducing scene-to-scene color whiplash, especially in short, fast-cut sequences
+- defer advanced lighting repair and custom JSON palette definitions to later versions
+
+Initial audio direction:
+
+- let the user choose one overall audio mix preset for the assembled output
+- support soundtrack plus source-audio workflows
+- normalize and blend audio automatically according to the selected preset
+- allow clip-level section overrides for moments like ambient-only, music-only, or source-led scenes
+- keep v1 overrides simple, with section-scoped behavior and optional fade-in/fade-out timing
+- support both manifest-defined music inputs and CLI overrides for quick experimentation
+
 ### V2
 
 V2 should extend the backbone into more differentiated composition and timing capabilities.
@@ -448,8 +578,16 @@ Goals:
 - split-screen and multi-panel composition
 - uneven panel sizing and sliced layouts
 - richer audio combination workflows
+- richer audio automation such as more detailed ducking, envelope control, and advanced mix shaping
 - optional prepared intermediates for safer editing and reuse
 - cue-aligned cut resolution
+- deeper color tooling such as advanced correction and custom palette definitions
+
+V2 audio refinement should include:
+
+- more fine-grained timing within clips instead of only section-level overrides
+- richer gain envelopes and automation beyond simple fades
+- more detailed mix shaping per scene moment when needed
 
 Cue alignment means:
 

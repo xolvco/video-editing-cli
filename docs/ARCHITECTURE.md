@@ -18,7 +18,31 @@ The value of this project should come from the layer above FFmpeg:
 - documentation, examples, and tests that make integration easier
 - human-readable JSON manifests for cut lists and timeline assembly
 - tooling that makes rapid music-video iteration easier than working with raw FFmpeg commands alone
+- named visual look presets that help fast-cut edits feel more color-consistent
+- global audio mix presets with section-level exceptions for fast-cut assembly workflows
 
 ## Design rule
 
 Prefer putting reusable behavior in the service layer first. The CLI should stay thin and call into library code rather than owning the real logic.
+
+## Color direction
+
+For assembled outputs, the library should support named look presets that apply a global visual style and also reduce distracting color jumps between adjacent clips.
+
+In v1, this should be preset-driven and automatic by default:
+
+- choosing a look preset should also enable clip-to-clip color harmonization
+- users may explicitly disable harmonization, but the default path should favor fast, visually cohesive edits
+- the goal is continuity across rapid scene changes, not full bad-lighting repair
+
+## Audio direction
+
+For assembled outputs, the library should support a global audio mix preset that defines how soundtrack audio and source audio are combined across the whole video.
+
+In v1, this should be workflow-driven and simple by default:
+
+- users choose one overall mix preset for the edit
+- the library normalizes and blends music and source audio automatically
+- individual clips or sections may override the default for moments like ambient-only or music-only scenes
+- v1 overrides stay simple, with section-level behavior and optional fade-in/fade-out timing
+- music input should be supported from the manifest and overridable from the CLI for quick iteration
