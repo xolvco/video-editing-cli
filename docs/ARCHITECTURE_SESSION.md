@@ -282,7 +282,13 @@ The current commands are useful building blocks, but the product should move tow
 ### Reframe or evolve
 
 - `concat`
-  It is useful, but not central to the product vision. It should remain a utility, not the main orchestration primitive.
+  It should evolve from a raw join helper into a lightweight sequence builder for playlist-style outputs.
+  It is still not the main orchestration primitive, but it should support practical editorial features such as:
+  - folder or file-list driven sequencing
+  - simple global clip trimming
+  - optional interstitial spacers between clips
+  - optional clip-start markers for navigation
+  - a playlist JSON mode for per-item timing and transition control
 
 - `assemble`
   This should become the central render command for timeline manifests.
@@ -370,6 +376,45 @@ Example shape:
   ],
   "output": {
     "path": "output.mp4"
+  }
+}
+```
+
+### 3. Concat playlist manifest
+
+Purpose:
+
+- define a linear playlist-style sequence from source videos with simple per-item timing and navigation metadata
+
+Example shape:
+
+```json
+{
+  "version": 1,
+  "defaults": {
+    "spacer_mode": "black",
+    "spacer_seconds": 2.0,
+    "audio_fade_in_seconds": 0.35,
+    "audio_fade_out_seconds": 0.35
+  },
+  "items": [
+    {
+      "path": "clips/intro.mp4",
+      "start": "00:00:03.000",
+      "end": "00:00:18.000",
+      "marker": "Intro"
+    },
+    {
+      "path": "clips/topic-a.mp4",
+      "start": "00:00:10.000",
+      "end": "00:00:45.000",
+      "audio_fade_in_seconds": 0.5,
+      "audio_fade_out_seconds": 0.5,
+      "marker": "Topic A"
+    }
+  ],
+  "output": {
+    "path": "playlist.mp4"
   }
 }
 ```
@@ -496,6 +541,26 @@ Reason:
 - users need the library to manage the default blend rather than manually rebuilding the mix for each cut
 - audio behavior belongs in assembly planning and rendering, not scattered across low-level utilities
 
+### Decision 13
+
+`concat` should support both quick file-list mode and a playlist JSON mode.
+
+Reason:
+
+- users often need a fast way to jam videos together into a playlist-style output
+- a JSON playlist gives a clear upgrade path for per-clip timing, markers, and transitions without creating a separate command
+- both modes still represent the same core intent: build one linear sequence from many videos
+
+### Decision 14
+
+`concat` markers should apply only to clips and should land at the clip start in the final output timeline.
+
+Reason:
+
+- navigation markers are most useful for jumping to real content, not blank spacers
+- playlist-style outputs benefit from chapter-like navigation to favorite segments
+- clip timing remains source-relative while marker placement is resolved on the final assembled timeline
+
 ## Output contract
 
 Recommended primary outputs:
@@ -535,6 +600,7 @@ Goals:
 - accept reviewed JSON manifests as the main public interface
 - normalize clips enough that mismatched media can be assembled safely
 - assemble whole clips and cut segments into a final sequence
+- support playlist-style concat workflows for combining many videos into one navigable output
 - support repeated editorial structure like gaps, fades, and markers
 - support preview and final render modes
 - support global look presets that automatically harmonize clip-to-clip color continuity
@@ -567,6 +633,17 @@ Initial audio direction:
 - allow clip-level section overrides for moments like ambient-only, music-only, or source-led scenes
 - keep v1 overrides simple, with section-scoped behavior and optional fade-in/fade-out timing
 - support both manifest-defined music inputs and CLI overrides for quick experimentation
+
+Initial concat direction:
+
+- keep `concat` as one command with two input modes:
+  - direct file-list mode for quick assembly
+  - playlist JSON mode for refined sequencing
+- default to no markers
+- support `--markers` in quick mode to generate clip-start markers from normalized filenames
+- keep spacer behavior global in v1, with `black` as the first spacer mode
+- allow playlist items to define source-relative start/end timing and simple per-item audio fade overrides
+- reserve more advanced per-item spacer behavior, internal markers, and title treatment for later versions
 
 ### V2
 

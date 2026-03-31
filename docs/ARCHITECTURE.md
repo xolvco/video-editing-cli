@@ -20,6 +20,7 @@ The value of this project should come from the layer above FFmpeg:
 - tooling that makes rapid music-video iteration easier than working with raw FFmpeg commands alone
 - named visual look presets that help fast-cut edits feel more color-consistent
 - global audio mix presets with section-level exceptions for fast-cut assembly workflows
+- playlist-style concat workflows with optional markers and spacers for multi-video outputs
 
 ## Design rule
 
@@ -46,3 +47,17 @@ In v1, this should be workflow-driven and simple by default:
 - individual clips or sections may override the default for moments like ambient-only or music-only scenes
 - v1 overrides stay simple, with section-level behavior and optional fade-in/fade-out timing
 - music input should be supported from the manifest and overridable from the CLI for quick iteration
+
+## Concat direction
+
+`concat` should remain one command, but support two modes:
+
+- quick file-list mode for combining videos with minimal setup
+- playlist JSON mode for per-item timing, markers, and transition control
+
+In v1, concat should focus on playlist-style outputs:
+
+- optional global black spacers between clips
+- optional clip-start markers for navigation
+- source-relative trim timing per clip in playlist mode
+- simple global defaults in quick mode, with more refined per-item control in JSON
