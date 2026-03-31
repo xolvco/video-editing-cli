@@ -184,15 +184,17 @@ def test_concat_playlist_resolution_uses_manifest_values(tmp_path: Path) -> None
     resolved = _resolve_playlist_inputs(playlist, "fallback.mp4")
 
     assert resolved["input_paths"] == ["clips/a.mp4", "clips/b.mp4"]
+    assert resolved["playlist_items"][0]["start"] == "00:00:03"
+    assert resolved["playlist_items"][1]["end"] == "00:00:10"
     assert resolved["output_path"] == "playlist-output.mp4"
-    assert resolved["start"] == "00:00:03"
-    assert resolved["end"] == "00:00:10"
+    assert resolved["start"] is None
+    assert resolved["end"] is None
     assert resolved["spacer_seconds"] == 2.0
     assert resolved["audio_fade_seconds"] == 0.5
     assert resolved["markers"] is True
 
 
-def test_concat_playlist_resolution_rejects_mixed_item_start_values(tmp_path: Path) -> None:
+def test_concat_playlist_resolution_allows_per_item_start_values(tmp_path: Path) -> None:
     from video_editing_cli.commands.concat import _resolve_playlist_inputs
 
     playlist = tmp_path / "playlist.json"
@@ -209,8 +211,75 @@ def test_concat_playlist_resolution_rejects_mixed_item_start_values(tmp_path: Pa
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError):
-        _resolve_playlist_inputs(playlist, "fallback.mp4")
+    resolved = _resolve_playlist_inputs(playlist, "fallback.mp4")
+
+    assert resolved["playlist_items"][0]["start"] == "00:00:03"
+    assert resolved["playlist_items"][1]["start"] == "00:00:04"
+
+
+def test_concat_playlist_mode_builds_filtered_ffmpeg_graph_with_per_item_values(tmp_path: Path, monkeypatch) -> None:
+    from video_editing_cli.commands.concat import _resolve_playlist_inputs
+    from video_editing_cli.operations import concat_playlist
+
+    clip_a = tmp_path / "clip_one.mp4"
+    clip_b = tmp_path / "clip_two.mp4"
+    clip_a.write_text("a", encoding="utf-8")
+    clip_b.write_text("b", encoding="utf-8")
+    captured: dict[str, list[str]] = {}
+    playlist = tmp_path / "playlist.json"
+    playlist.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "defaults": {
+                    "spacer_seconds": 2.0,
+                    "audio_fade_in_seconds": 0.25,
+                    "audio_fade_out_seconds": 0.25,
+                },
+                "items": [
+                    {
+                        "path": str(clip_a),
+                        "start": "00:00:01",
+                        "end": "00:00:05",
+                        "marker": "Clip One",
+                        "audio_fade_in_seconds": 0.5,
+                    },
+                    {
+                        "path": str(clip_b),
+                        "start": "00:00:02",
+                        "duration": "3.0",
+                        "marker": "Clip Two",
+                        "audio_fade_out_seconds": 0.75,
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_probe_media(self, input_path):  # type: ignore[no-untyped-def]
+        return {"format": {"duration": "12.0"}}
+
+    def fake_run_ffmpeg(args):  # type: ignore[no-untyped-def]
+        captured["args"] = list(args)
+        return None
+
+    monkeypatch.setattr(VideoEditingService, "probe_media", fake_probe_media)
+    monkeypatch.setattr("video_editing_cli.service.run_ffmpeg", fake_run_ffmpeg)
+
+    resolved = _resolve_playlist_inputs(playlist, "fallback.mp4")
+    concat_playlist(
+        items=resolved["playlist_items"],
+        output_path=tmp_path / "out.mp4",
+        spacer_seconds=float(resolved["spacer_seconds"]),
+        audio_fade_seconds=float(resolved["audio_fade_seconds"]),
+    )
+
+    command_text = " ".join(captured["args"])
+    assert "trim=start=1.000:duration=4.000" in command_text
+    assert "trim=start=2.000:duration=3.000" in command_text
+    assert "afade=t=in:st=0:d=0.500" in command_text
+    assert "afade=t=out:st=2.250:d=0.750" in command_text
 
 
 def test_concat_rejects_end_before_start(tmp_path: Path) -> None:

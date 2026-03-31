@@ -69,6 +69,6 @@ video-edit concat output.mp4 --playlist playlist.json
   - future interstitial and title controls
 - Current playlist support is intentionally narrow:
   - ordered item paths
-  - shared `start` and `end` values across items
-  - shared default spacer and audio fade values
-  - marker detection from playlist items
+  - per-item `start`, `end`, or `duration`
+  - per-item markers
+  - defaults plus per-item overrides for spacer and audio fade values

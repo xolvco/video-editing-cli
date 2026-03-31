@@ -74,6 +74,22 @@ def concat_videos(
     )
 
 
+def concat_playlist(
+    items: list[dict[str, object]],
+    output_path: Path,
+    spacer_seconds: float = 0.0,
+    audio_fade_seconds: float = 0.0,
+    overwrite: bool = True,
+) -> Path:
+    return DEFAULT_SERVICE.concat_playlist(
+        items=items,
+        output_path=output_path,
+        spacer_seconds=spacer_seconds,
+        audio_fade_seconds=audio_fade_seconds,
+        overwrite=overwrite,
+    )
+
+
 def extract_audio(
     input_path: Path,
     output_path: Path,

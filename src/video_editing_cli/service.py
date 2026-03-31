@@ -180,39 +180,12 @@ class VideoEditingService:
                     )
                 )
 
-            metadata_path: Path | None = write_metadata_file(sections) if markers else None
-            ffmpeg_args = [self.tools.ffmpeg, "-hide_banner", "-y" if overwrite else "-n"]
-            for section in sections:
-                ffmpeg_args.extend(["-i", str(section.input_path)])
-            if metadata_path is not None:
-                ffmpeg_args.extend(["-i", str(metadata_path)])
-            ffmpeg_args.extend(
-                [
-                    "-filter_complex",
-                    build_filter_complex(sections),
-                    "-map",
-                    "[outv]",
-                    "-map",
-                    "[outa]",
-                ]
+            return self._render_concat_sections(
+                sections=sections,
+                output_path=target,
+                markers=markers,
+                overwrite=overwrite,
             )
-            if metadata_path is not None:
-                ffmpeg_args.extend(
-                    [
-                        "-map_metadata",
-                        str(len(sections)),
-                        "-movflags",
-                        "use_metadata_tags",
-                    ]
-                )
-            ffmpeg_args.extend(["-c:v", "libx264", "-c:a", "aac", str(target)])
-
-            try:
-                run_ffmpeg(ffmpeg_args)
-                return target
-            finally:
-                if metadata_path is not None:
-                    metadata_path.unlink(missing_ok=True)
 
         with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as handle:
             for source in sources:
@@ -241,6 +214,105 @@ class VideoEditingService:
             return target
         finally:
             list_path.unlink(missing_ok=True)
+
+    def concat_playlist(
+        self,
+        items: Iterable[dict[str, object]],
+        output_path: Path | str,
+        spacer_seconds: float = 0.0,
+        audio_fade_seconds: float = 0.0,
+        overwrite: bool = True,
+    ) -> Path:
+        raw_items = list(items)
+        if len(raw_items) < 2:
+            raise ValueError("concat playlist requires at least two items")
+
+        sections: list[TimelineSection] = []
+        markers = False
+        for item in raw_items:
+            source = validate_existing_file(Path(str(item["path"])))
+            marker_text = item.get("marker")
+            if marker_text is not None:
+                if not isinstance(marker_text, str):
+                    raise ValueError("Playlist item marker must be a string when provided")
+                title = marker_text.strip() or _normalize_marker_text(source.stem)
+                markers = True
+            else:
+                title = _normalize_marker_text(source.stem)
+
+            start_seconds = parse_timecode(item.get("start")) or 0.0
+            end_value = item.get("end")
+            duration_value = item.get("duration")
+            source_duration_seconds = parse_duration_from_probe(self.probe_media(source))
+            duration_seconds = resolve_section_duration(
+                source_duration_seconds=source_duration_seconds,
+                start_seconds=start_seconds,
+                end_value=end_value,
+                duration_value=duration_value,
+            )
+            section_spacer_seconds = float(item.get("spacer_seconds", spacer_seconds))
+            fade_in_seconds = float(item.get("audio_fade_in_seconds", audio_fade_seconds))
+            fade_out_seconds = float(item.get("audio_fade_out_seconds", audio_fade_seconds))
+            sections.append(
+                TimelineSection(
+                    input_path=source,
+                    title=title,
+                    duration_seconds=duration_seconds,
+                    start_seconds=start_seconds,
+                    gap_after_seconds=section_spacer_seconds,
+                    audio_fade_in_seconds=fade_in_seconds,
+                    audio_fade_out_seconds=fade_out_seconds,
+                )
+            )
+
+        return self._render_concat_sections(
+            sections=sections,
+            output_path=output_path,
+            markers=markers,
+            overwrite=overwrite,
+        )
+
+    def _render_concat_sections(
+        self,
+        sections: list[TimelineSection],
+        output_path: Path | str,
+        markers: bool,
+        overwrite: bool,
+    ) -> Path:
+        target = Path(output_path).expanduser().resolve()
+        metadata_path: Path | None = write_metadata_file(sections) if markers else None
+        ffmpeg_args = [self.tools.ffmpeg, "-hide_banner", "-y" if overwrite else "-n"]
+        for section in sections:
+            ffmpeg_args.extend(["-i", str(section.input_path)])
+        if metadata_path is not None:
+            ffmpeg_args.extend(["-i", str(metadata_path)])
+        ffmpeg_args.extend(
+            [
+                "-filter_complex",
+                build_filter_complex(sections),
+                "-map",
+                "[outv]",
+                "-map",
+                "[outa]",
+            ]
+        )
+        if metadata_path is not None:
+            ffmpeg_args.extend(
+                [
+                    "-map_metadata",
+                    str(len(sections)),
+                    "-movflags",
+                    "use_metadata_tags",
+                ]
+            )
+        ffmpeg_args.extend(["-c:v", "libx264", "-c:a", "aac", str(target)])
+
+        try:
+            run_ffmpeg(ffmpeg_args)
+            return target
+        finally:
+            if metadata_path is not None:
+                metadata_path.unlink(missing_ok=True)
 
     def extract_audio(
         self,

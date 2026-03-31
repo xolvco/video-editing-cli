@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from ..operations import concat_videos
+from ..operations import concat_playlist, concat_videos
 from ..manifests import load_json_document
 
 COMMAND_NAME = "concat"
@@ -44,17 +44,26 @@ def handle(args: argparse.Namespace) -> int:
         print(json.dumps(resolved["preview_payload"], indent=2))
         return 0
 
-    concat_videos(
-        input_paths=resolved["input_paths"],
-        output_path=resolved["output_path"],
-        start=resolved["start"],
-        end=resolved["end"],
-        spacer_seconds=resolved["spacer_seconds"],
-        audio_fade_seconds=resolved["audio_fade_seconds"],
-        markers=resolved["markers"],
-        reencode=args.reencode,
-        overwrite=not args.no_overwrite,
-    )
+    if resolved["playlist_items"] is not None:
+        concat_playlist(
+            items=resolved["playlist_items"],
+            output_path=Path(str(resolved["output_path"])),
+            spacer_seconds=float(resolved["spacer_seconds"]),
+            audio_fade_seconds=float(resolved["audio_fade_seconds"]),
+            overwrite=not args.no_overwrite,
+        )
+    else:
+        concat_videos(
+            input_paths=resolved["input_paths"],
+            output_path=resolved["output_path"],
+            start=resolved["start"],
+            end=resolved["end"],
+            spacer_seconds=resolved["spacer_seconds"],
+            audio_fade_seconds=resolved["audio_fade_seconds"],
+            markers=resolved["markers"],
+            reencode=args.reencode,
+            overwrite=not args.no_overwrite,
+        )
     print(resolved["output_path"])
     return 0
 
@@ -103,6 +112,7 @@ def _resolve_concat_inputs(
     input_paths = _resolve_input_paths(inputs, input_dir)
     return {
         "input_paths": input_paths,
+        "playlist_items": None,
         "output_path": output,
         "start": start,
         "end": end,
@@ -139,10 +149,8 @@ def _resolve_playlist_inputs(playlist_path: Path, cli_output: str) -> dict[str, 
         raise ValueError("'output' must be an object when provided")
 
     input_paths: list[str] = []
-    item_start: str | None = None
-    item_end: str | None = None
+    resolved_items: list[dict[str, object]] = []
     item_markers = False
-    item_audio_fade_seconds = float(defaults.get("audio_fade_in_seconds", 0.0))
     for item in items:
         if not isinstance(item, dict):
             raise ValueError("Each playlist item must be an object")
@@ -150,38 +158,32 @@ def _resolve_playlist_inputs(playlist_path: Path, cli_output: str) -> dict[str, 
         if not isinstance(path, str) or not path.strip():
             raise ValueError("Each playlist item must define a non-empty string 'path'")
         input_paths.append(path)
+        resolved_item: dict[str, object] = {"path": path}
         if "marker" in item and item.get("marker") is not None:
             item_markers = True
-        if "start" in item and item.get("start") is not None:
-            candidate = str(item["start"])
-            if item_start is None:
-                item_start = candidate
-            elif item_start != candidate:
-                raise ValueError("Playlist v1 currently requires one shared 'start' value across items")
-        if "end" in item and item.get("end") is not None:
-            candidate = str(item["end"])
-            if item_end is None:
-                item_end = candidate
-            elif item_end != candidate:
-                raise ValueError("Playlist v1 currently requires one shared 'end' value across items")
-        fade_in = item.get("audio_fade_in_seconds")
-        fade_out = item.get("audio_fade_out_seconds")
-        if fade_in is not None or fade_out is not None:
-            candidate = float(fade_in if fade_in is not None else fade_out)
-            if item_audio_fade_seconds == float(defaults.get("audio_fade_in_seconds", 0.0)):
-                item_audio_fade_seconds = candidate
-            elif item_audio_fade_seconds != candidate:
-                raise ValueError(
-                    "Playlist v1 currently requires one shared audio fade value across items"
-                )
+            resolved_item["marker"] = str(item["marker"])
+        if item.get("start") is not None:
+            resolved_item["start"] = str(item["start"])
+        if item.get("end") is not None:
+            resolved_item["end"] = str(item["end"])
+        if item.get("duration") is not None:
+            resolved_item["duration"] = str(item["duration"])
+        if item.get("audio_fade_in_seconds") is not None:
+            resolved_item["audio_fade_in_seconds"] = float(item["audio_fade_in_seconds"])
+        if item.get("audio_fade_out_seconds") is not None:
+            resolved_item["audio_fade_out_seconds"] = float(item["audio_fade_out_seconds"])
+        if item.get("spacer_seconds") is not None:
+            resolved_item["spacer_seconds"] = float(item["spacer_seconds"])
+        resolved_items.append(resolved_item)
 
     return {
         "input_paths": input_paths,
+        "playlist_items": resolved_items,
         "output_path": str(output_payload.get("path") or cli_output),
-        "start": item_start,
-        "end": item_end,
+        "start": None,
+        "end": None,
         "spacer_seconds": float(defaults.get("spacer_seconds", 0.0)),
-        "audio_fade_seconds": item_audio_fade_seconds,
+        "audio_fade_seconds": float(defaults.get("audio_fade_in_seconds", 0.0)),
         "markers": item_markers,
         "preview_payload": payload,
     }
