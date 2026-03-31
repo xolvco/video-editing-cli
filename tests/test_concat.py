@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -49,6 +50,15 @@ def test_concat_parser_accepts_input_dir() -> None:
     assert args.full_preview is True
 
 
+def test_concat_parser_accepts_playlist() -> None:
+    parser = build_parser()
+    args = parser.parse_args(["concat", "joined.mp4", "--playlist", "playlist.json"])
+
+    assert args.command == "concat"
+    assert args.output == "joined.mp4"
+    assert args.playlist == "playlist.json"
+
+
 def test_concat_requires_two_inputs(tmp_path: Path) -> None:
     clip = tmp_path / "clip.mp4"
     clip.write_text("placeholder", encoding="utf-8")
@@ -62,6 +72,23 @@ def test_concat_input_resolution_rejects_both_inputs_and_directory(tmp_path: Pat
 
     with pytest.raises(ValueError):
         _resolve_input_paths(["a.mp4", "b.mp4"], str(tmp_path))
+
+
+def test_concat_source_resolution_requires_exactly_one_source_mode(tmp_path: Path) -> None:
+    from video_editing_cli.commands.concat import _resolve_concat_inputs
+
+    with pytest.raises(ValueError):
+        _resolve_concat_inputs(
+            inputs=["a.mp4", "b.mp4"],
+            input_dir=str(tmp_path),
+            playlist=None,
+            output="out.mp4",
+            start=None,
+            end=None,
+            spacer_seconds=0.0,
+            audio_fade_seconds=0.0,
+            markers=False,
+        )
 
 
 def test_concat_input_resolution_uses_sorted_directory_files(tmp_path: Path) -> None:
@@ -119,6 +146,71 @@ def test_concat_json_preview_full_includes_defaults_and_explicit_fields() -> Non
     assert payload["items"][0]["end"] is None
     assert payload["items"][0]["marker"] is None
     assert payload["items"][0]["audio_fade_in_seconds"] == 0.5
+
+
+def test_concat_playlist_resolution_uses_manifest_values(tmp_path: Path) -> None:
+    from video_editing_cli.commands.concat import _resolve_playlist_inputs
+
+    playlist = tmp_path / "playlist.json"
+    playlist.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "defaults": {
+                    "spacer_seconds": 2.0,
+                    "audio_fade_in_seconds": 0.5,
+                    "audio_fade_out_seconds": 0.5,
+                },
+                "items": [
+                    {
+                        "path": "clips/a.mp4",
+                        "start": "00:00:03",
+                        "end": "00:00:10",
+                        "marker": "Clip A",
+                    },
+                    {
+                        "path": "clips/b.mp4",
+                        "start": "00:00:03",
+                        "end": "00:00:10",
+                        "marker": "Clip B",
+                    },
+                ],
+                "output": {"path": "playlist-output.mp4"},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    resolved = _resolve_playlist_inputs(playlist, "fallback.mp4")
+
+    assert resolved["input_paths"] == ["clips/a.mp4", "clips/b.mp4"]
+    assert resolved["output_path"] == "playlist-output.mp4"
+    assert resolved["start"] == "00:00:03"
+    assert resolved["end"] == "00:00:10"
+    assert resolved["spacer_seconds"] == 2.0
+    assert resolved["audio_fade_seconds"] == 0.5
+    assert resolved["markers"] is True
+
+
+def test_concat_playlist_resolution_rejects_mixed_item_start_values(tmp_path: Path) -> None:
+    from video_editing_cli.commands.concat import _resolve_playlist_inputs
+
+    playlist = tmp_path / "playlist.json"
+    playlist.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "items": [
+                    {"path": "clips/a.mp4", "start": "00:00:03"},
+                    {"path": "clips/b.mp4", "start": "00:00:04"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        _resolve_playlist_inputs(playlist, "fallback.mp4")
 
 
 def test_concat_rejects_end_before_start(tmp_path: Path) -> None:
