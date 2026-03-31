@@ -17,6 +17,7 @@ Version `1` currently defines two manifest shapes:
 
 - cut list manifests
 - timeline manifests
+- concat playlist manifests
 
 ## Cut list manifest v1
 
@@ -92,3 +93,43 @@ Use this to assemble a final output from reusable cuts.
 - time values may be numeric seconds or `HH:MM:SS(.sss)` strings
 - cuts should use either `end` or `duration`, not both
 - timeline sections reference cuts by id
+
+## Concat playlist manifest v1
+
+Use this to define a linear playlist-style concat job with ordered input items.
+
+```json
+{
+  "version": 1,
+  "defaults": {
+    "spacer_mode": "black",
+    "spacer_seconds": 2.0,
+    "audio_fade_in_seconds": 0.5,
+    "audio_fade_out_seconds": 0.5
+  },
+  "items": [
+    {
+      "path": "clips/a.mp4",
+      "start": "00:00:03",
+      "end": "00:00:10",
+      "marker": "Clip A"
+    },
+    {
+      "path": "clips/b.mp4",
+      "duration": "3.0",
+      "audio_fade_out_seconds": 0.75
+    }
+  ],
+  "output": {
+    "path": "playlist.mp4"
+  }
+}
+```
+
+Concat playlist notes:
+
+- `items` must contain at least two objects
+- each item must define a `path`
+- each item may define either `end` or `duration`, not both
+- item timing values are relative to that source video
+- defaults may supply shared spacer and audio fade values

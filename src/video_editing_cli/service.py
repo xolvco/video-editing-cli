@@ -20,7 +20,12 @@ from .assembly import (
     write_metadata_file,
 )
 from .ffmpeg import run_ffmpeg, run_ffprobe, validate_existing_file
-from .manifests import load_json_document, parse_cut_list_manifest, parse_timeline_manifest
+from .manifests import (
+    load_json_document,
+    parse_concat_playlist_manifest,
+    parse_cut_list_manifest,
+    parse_timeline_manifest,
+)
 
 
 @dataclass(frozen=True)
@@ -61,23 +66,38 @@ class VideoEditingService:
             manifest = parse_timeline_manifest(payload)
             manifest_type = "timeline"
             section_count = len(manifest.sections)
+        elif "items" in payload:
+            manifest = parse_concat_playlist_manifest(payload)
+            manifest_type = "concat-playlist"
+            section_count = len(manifest.items)
         elif "cuts" in payload and "sources" in payload:
             manifest = parse_cut_list_manifest(payload)
             manifest_type = "cut-list"
             section_count = None
         else:
-            raise ValueError("Could not determine manifest type. Expected a cut-list or timeline manifest.")
+            raise ValueError(
+                "Could not determine manifest type. Expected a cut-list, timeline, or concat playlist manifest."
+            )
 
         base_dir = resolved_manifest_path.parent
-        for source in manifest.sources.values():
-            source_path = source.path if source.path.is_absolute() else base_dir / source.path
-            validate_existing_file(source_path)
+        if manifest_type == "concat-playlist":
+            for item in manifest.items:
+                source_path = item.path if item.path.is_absolute() else base_dir / item.path
+                validate_existing_file(source_path)
+            source_count = len(manifest.items)
+            cut_count = len(manifest.items)
+        else:
+            for source in manifest.sources.values():
+                source_path = source.path if source.path.is_absolute() else base_dir / source.path
+                validate_existing_file(source_path)
+            source_count = len(manifest.sources)
+            cut_count = len(manifest.cuts)
 
         return ManifestValidationResult(
             manifest_type=manifest_type,
             manifest_path=resolved_manifest_path,
-            source_count=len(manifest.sources),
-            cut_count=len(manifest.cuts),
+            source_count=source_count,
+            cut_count=cut_count,
             section_count=section_count,
         )
 

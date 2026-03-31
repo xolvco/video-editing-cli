@@ -63,6 +63,34 @@ def test_validate_manifest_accepts_timeline_manifest(tmp_path: Path) -> None:
     assert result.section_count == 1
 
 
+def test_validate_manifest_accepts_concat_playlist_manifest(tmp_path: Path) -> None:
+    clip_a = tmp_path / "clip-a.mp4"
+    clip_b = tmp_path / "clip-b.mp4"
+    manifest_path = tmp_path / "playlist.json"
+    clip_a.write_text("a", encoding="utf-8")
+    clip_b.write_text("b", encoding="utf-8")
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "defaults": {"spacer_seconds": 2.0},
+                "items": [
+                    {"path": "clip-a.mp4", "start": "00:00:03", "marker": "Clip A"},
+                    {"path": "clip-b.mp4", "duration": "3.0"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = VideoEditingService().validate_manifest(manifest_path)
+
+    assert result.manifest_type == "concat-playlist"
+    assert result.source_count == 2
+    assert result.cut_count == 2
+    assert result.section_count == 2
+
+
 def test_validate_manifest_rejects_missing_source_file(tmp_path: Path) -> None:
     manifest_path = tmp_path / "timeline.json"
     manifest_path.write_text(

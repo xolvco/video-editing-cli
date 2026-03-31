@@ -1,6 +1,10 @@
 import pytest
 
-from video_editing_cli.manifests import parse_cut_list_manifest, parse_timeline_manifest
+from video_editing_cli.manifests import (
+    parse_concat_playlist_manifest,
+    parse_cut_list_manifest,
+    parse_timeline_manifest,
+)
 
 
 def test_parse_cut_list_manifest_v1() -> None:
@@ -70,5 +74,60 @@ def test_parse_timeline_manifest_rejects_unknown_cut() -> None:
                 "sources": [{"id": "session", "path": "session.mp4"}],
                 "cuts": [{"id": "intro-look", "source": "session"}],
                 "sections": [{"cut": "missing"}],
+            }
+        )
+
+
+def test_parse_concat_playlist_manifest_v1() -> None:
+    manifest = parse_concat_playlist_manifest(
+        {
+            "version": 1,
+            "defaults": {
+                "spacer_mode": "black",
+                "spacer_seconds": 2.0,
+                "audio_fade_in_seconds": 0.5,
+                "audio_fade_out_seconds": 0.5,
+            },
+            "items": [
+                {
+                    "path": "clips/a.mp4",
+                    "start": "00:00:03",
+                    "end": "00:00:10",
+                    "marker": "Clip A",
+                    "audio_fade_in_seconds": 0.5,
+                },
+                {
+                    "path": "clips/b.mp4",
+                    "duration": "3.0",
+                    "spacer_seconds": 1.0,
+                },
+            ],
+            "output": {"path": "playlist.mp4"},
+        }
+    )
+
+    assert manifest.defaults.spacer_mode == "black"
+    assert manifest.defaults.spacer_seconds == 2.0
+    assert manifest.items[0].path.as_posix() == "clips/a.mp4"
+    assert manifest.items[0].start == "00:00:03"
+    assert manifest.items[0].marker == "Clip A"
+    assert manifest.items[1].duration == "3.0"
+    assert manifest.items[1].spacer_seconds == 1.0
+    assert manifest.output.path.as_posix() == "playlist.mp4"
+
+
+def test_parse_concat_playlist_manifest_rejects_end_and_duration_together() -> None:
+    with pytest.raises(ValueError):
+        parse_concat_playlist_manifest(
+            {
+                "version": 1,
+                "items": [
+                    {
+                        "path": "clips/a.mp4",
+                        "end": "00:00:10",
+                        "duration": "3.0",
+                    },
+                    {"path": "clips/b.mp4"},
+                ],
             }
         )

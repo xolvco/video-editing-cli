@@ -47,6 +47,26 @@ class OutputDefinition:
 
 
 @dataclass(frozen=True)
+class ConcatDefaults:
+    spacer_mode: str = "black"
+    spacer_seconds: float = 0.0
+    audio_fade_in_seconds: float = 0.0
+    audio_fade_out_seconds: float = 0.0
+
+
+@dataclass(frozen=True)
+class ConcatItemDefinition:
+    path: Path
+    start: str | None = None
+    end: str | None = None
+    duration: str | None = None
+    marker: str | None = None
+    audio_fade_in_seconds: float | None = None
+    audio_fade_out_seconds: float | None = None
+    spacer_seconds: float | None = None
+
+
+@dataclass(frozen=True)
 class CutListManifest:
     version: int
     sources: dict[str, SourceAsset]
@@ -60,6 +80,14 @@ class TimelineManifest:
     cuts: dict[str, CutDefinition]
     sections: list[TimelineSectionDefinition]
     defaults: TimelineDefaults = field(default_factory=TimelineDefaults)
+    output: OutputDefinition = field(default_factory=OutputDefinition)
+
+
+@dataclass(frozen=True)
+class ConcatPlaylistManifest:
+    version: int
+    items: list[ConcatItemDefinition]
+    defaults: ConcatDefaults = field(default_factory=ConcatDefaults)
     output: OutputDefinition = field(default_factory=OutputDefinition)
 
 
@@ -201,6 +229,75 @@ def parse_timeline_manifest(payload: dict[str, Any]) -> TimelineManifest:
         sources=sources,
         cuts=cuts,
         sections=sections,
+        defaults=defaults,
+        output=output,
+    )
+
+
+def parse_concat_playlist_manifest(payload: dict[str, Any]) -> ConcatPlaylistManifest:
+    version = _require_version(payload)
+
+    defaults_payload = payload.get("defaults", {})
+    if not isinstance(defaults_payload, dict):
+        raise ValueError("'defaults' must be an object when provided")
+    spacer_mode = defaults_payload.get("spacer_mode", "black")
+    if not isinstance(spacer_mode, str) or not spacer_mode.strip():
+        raise ValueError("'defaults.spacer_mode' must be a non-empty string when provided")
+    defaults = ConcatDefaults(
+        spacer_mode=spacer_mode,
+        spacer_seconds=float(defaults_payload.get("spacer_seconds", 0.0)),
+        audio_fade_in_seconds=float(defaults_payload.get("audio_fade_in_seconds", 0.0)),
+        audio_fade_out_seconds=float(defaults_payload.get("audio_fade_out_seconds", 0.0)),
+    )
+
+    items_payload = _require_list(payload, "items")
+    items: list[ConcatItemDefinition] = []
+    for item in items_payload:
+        item_path = item.get("path")
+        if not isinstance(item_path, str) or not item_path.strip():
+            raise ValueError("Each concat playlist item must define a non-empty string 'path'")
+        start = item.get("start")
+        end = item.get("end")
+        duration = item.get("duration")
+        if start is not None:
+            parse_timecode(start)
+        if end is not None:
+            parse_timecode(end)
+        if duration is not None:
+            parse_timecode(duration)
+        if end is not None and duration is not None:
+            raise ValueError("Concat playlist item cannot define both 'end' and 'duration'")
+
+        marker = item.get("marker")
+        if marker is not None and not isinstance(marker, str):
+            raise ValueError("Concat playlist item 'marker' must be a string when provided")
+
+        items.append(
+            ConcatItemDefinition(
+                path=Path(item_path),
+                start=str(start) if start is not None else None,
+                end=str(end) if end is not None else None,
+                duration=str(duration) if duration is not None else None,
+                marker=marker,
+                audio_fade_in_seconds=(
+                    float(item["audio_fade_in_seconds"]) if "audio_fade_in_seconds" in item else None
+                ),
+                audio_fade_out_seconds=(
+                    float(item["audio_fade_out_seconds"]) if "audio_fade_out_seconds" in item else None
+                ),
+                spacer_seconds=float(item["spacer_seconds"]) if "spacer_seconds" in item else None,
+            )
+        )
+
+    output_payload = payload.get("output", {})
+    if not isinstance(output_payload, dict):
+        raise ValueError("'output' must be an object when provided")
+    output_path = output_payload.get("path")
+    output = OutputDefinition(path=Path(output_path) if isinstance(output_path, str) else None)
+
+    return ConcatPlaylistManifest(
+        version=version,
+        items=items,
         defaults=defaults,
         output=output,
     )
