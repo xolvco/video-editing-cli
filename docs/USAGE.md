@@ -35,8 +35,10 @@ python -m video_editing_cli <command> [arguments] [options]
 ## Included commands
 
 - `probe`: print media metadata as JSON
+- `validate`: check manifests before planning or rendering
+- `plan`: resolve an assembly manifest into JSON without rendering
 - `trim`: create a clip from a source file
-- `concat`: join multiple clips into one output
+- `concat`: join clips into one output from files, folders, or a concat playlist
 - `extract-audio`: write an audio-only output from a media file
 - `assemble`: render a manifest-driven timeline with gaps, fades, and chapter markers
 
@@ -54,10 +56,46 @@ video-edit probe input.mp4
 video-edit trim input.mp4 clip.mp4 --start 00:00:05 --duration 15
 ```
 
-### Concatenate clips
+### Validate a manifest
+
+```bash
+video-edit validate examples/manifests/timeline.v1.json
+```
+
+### Resolve an assembly plan without rendering
+
+```bash
+video-edit plan examples/manifests/timeline.v1.json output.mp4
+```
+
+### Concatenate clips directly
 
 ```bash
 video-edit concat merged.mp4 intro.mp4 main.mp4 outro.mp4
+```
+
+### Concatenate a folder of videos
+
+```bash
+video-edit concat merged.mp4 --input-dir clips
+```
+
+### Generate a concat playlist scaffold from a folder
+
+```bash
+video-edit concat merged.mp4 --input-dir clips --json-preview
+```
+
+Full scaffold with defaults and explicit editable fields:
+
+```bash
+video-edit concat merged.mp4 --input-dir clips --json-preview --full-preview
+```
+
+### Concatenate from a playlist manifest
+
+```bash
+video-edit concat merged.mp4 --playlist playlist.json
 ```
 
 ### Extract audio
@@ -69,17 +107,30 @@ video-edit extract-audio input.mp4 audio.wav
 ### Assemble a timeline from a manifest
 
 ```bash
-video-edit assemble examples/manifests/playlist.json output.mp4
+video-edit assemble examples/manifests/timeline.v1.json output.mp4
 ```
 
 The manifest can describe cuts from longer source files with versioned `sources`, `cuts`, and `sections`.
 For the versioned manifest schema, see `docs/MANIFESTS.md`.
+
+## Common workflow
+
+For manifest-driven editing, the typical sequence is:
+
+1. `validate` the manifest
+2. `plan` the assembly or preview scaffold
+3. `assemble` or `concat` the final output
+
+For quick concat work, start with direct files or `--input-dir`, then use `--json-preview` when you want an editable playlist scaffold.
 
 ## Command reference
 
 Detailed command pages live in `docs/commands/`.
 
 - `docs/commands/probe.md`
+- `docs/commands/validate.md`
+- `docs/commands/plan.md`
 - `docs/commands/trim.md`
 - `docs/commands/concat.md`
 - `docs/commands/extract_audio.md`
+- `docs/commands/assemble.md`

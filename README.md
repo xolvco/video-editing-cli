@@ -60,7 +60,9 @@ This scaffold focuses on a stable foundation for a reusable editing CLI. The ini
 
 - `probe`: inspect a media file with `ffprobe`
 - `trim`: cut a clip with optional stream copying
-- `concat`: join multiple inputs using FFmpeg's concat demuxer
+- `validate`: validate cut-list, timeline, and concat playlist manifests
+- `plan`: resolve an assembly manifest into JSON without rendering
+- `concat`: join multiple inputs, folders, or concat playlist manifests
 - `extract-audio`: export an audio track from a video file
 - `assemble`: build a stitched timeline from a manifest with gaps, audio fades, and chapter markers
 
@@ -109,13 +111,18 @@ pip install -e .[dev]
 
 ```bash
 video-edit probe input.mp4
+video-edit validate examples/manifests/timeline.v1.json
+video-edit plan examples/manifests/timeline.v1.json output.mp4
 video-edit trim input.mp4 output.mp4 --start 00:00:03 --duration 12
 video-edit concat output.mp4 clip1.mp4 clip2.mp4 clip3.mp4
+video-edit concat output.mp4 --input-dir clips
+video-edit concat output.mp4 --input-dir clips --json-preview
 video-edit extract-audio input.mp4 audio.wav
-video-edit assemble examples/manifests/playlist.json output.mp4
+video-edit assemble examples/manifests/timeline.v1.json output.mp4
 ```
 
 The `assemble` workflow uses versioned, human-readable JSON manifests so you can describe cuts and reassembly with explicit timecodes.
+The `concat` workflow now also supports manifest-style preview scaffolding and concat playlist manifests for quick playlist authoring.
 
 You can also run the CLI in a shell-neutral way:
 
@@ -159,7 +166,7 @@ If you want to call the CLI from Git Bash or WSL2 bash, start with `docs/BASH.md
 Run tests with:
 
 ```bash
-pytest
+.\.venv\Scripts\python -m pytest
 ```
 
 Each registered command is also checked for matching docs and tests, so missing one of the three pieces will fail the suite.
