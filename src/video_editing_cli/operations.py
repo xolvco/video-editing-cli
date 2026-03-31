@@ -53,12 +53,22 @@ def trim_video(
 def concat_videos(
     input_paths: Iterable[Path],
     output_path: Path,
+    start: str | None = None,
+    end: str | None = None,
+    spacer_seconds: float = 0.0,
+    audio_fade_seconds: float = 0.0,
+    markers: bool = False,
     reencode: bool = False,
     overwrite: bool = True,
 ) -> Path:
     return DEFAULT_SERVICE.concat_videos(
         input_paths=input_paths,
         output_path=output_path,
+        start=start,
+        end=end,
+        spacer_seconds=spacer_seconds,
+        audio_fade_seconds=audio_fade_seconds,
+        markers=markers,
         reencode=reencode,
         overwrite=overwrite,
     )

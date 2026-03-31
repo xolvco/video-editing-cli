@@ -26,6 +26,11 @@ video-edit concat output.mp4 --playlist playlist.json
 - Requires at least two input files
 - Stream copy is the default when compatible
 - Use `--reencode` if the inputs do not concatenate cleanly
+- If you use `--start`, `--end`, `--spacer-seconds`, `--audio-fade-seconds`, or `--markers`,
+  concat automatically switches to a filter-based render path and re-encodes the output
+- `--markers` creates clip-start chapter markers from normalized filenames
+- filename marker labels replace underscores and hyphens with spaces
+- `--start` and `--end` are applied to each input clip using timecodes relative to that source video
 - In v1 planning, quick mode may grow support for:
   - optional black spacers between clips
   - optional clip-start markers derived from normalized filenames

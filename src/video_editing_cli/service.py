@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,7 @@ from .assembly import (
     build_filter_complex,
     normalize_title,
     parse_duration_from_probe,
+    parse_timecode,
     resolve_section_duration,
     write_metadata_file,
 )
@@ -130,6 +132,11 @@ class VideoEditingService:
         self,
         input_paths: Iterable[Path | str],
         output_path: Path | str,
+        start: str | None = None,
+        end: str | None = None,
+        spacer_seconds: float = 0.0,
+        audio_fade_seconds: float = 0.0,
+        markers: bool = False,
         reencode: bool = False,
         overwrite: bool = True,
     ) -> Path:
@@ -138,6 +145,75 @@ class VideoEditingService:
             raise ValueError("concat requires at least two input files")
 
         target = Path(output_path).expanduser().resolve()
+        start_seconds = parse_timecode(start) or 0.0
+        end_seconds = parse_timecode(end)
+        advanced_concat = (
+            start is not None
+            or end is not None
+            or spacer_seconds > 0
+            or audio_fade_seconds > 0
+            or markers
+        )
+
+        if end_seconds is not None and end_seconds <= start_seconds:
+            raise ValueError("concat end time must be greater than start time")
+
+        if advanced_concat:
+            sections: list[TimelineSection] = []
+            for source in sources:
+                source_duration_seconds = parse_duration_from_probe(self.probe_media(source))
+                duration_seconds = resolve_section_duration(
+                    source_duration_seconds=source_duration_seconds,
+                    start_seconds=start_seconds,
+                    end_value=end_seconds,
+                    duration_value=None,
+                )
+                sections.append(
+                    TimelineSection(
+                        input_path=source,
+                        title=_normalize_marker_text(source.stem),
+                        duration_seconds=duration_seconds,
+                        start_seconds=start_seconds,
+                        gap_after_seconds=spacer_seconds,
+                        audio_fade_in_seconds=audio_fade_seconds,
+                        audio_fade_out_seconds=audio_fade_seconds,
+                    )
+                )
+
+            metadata_path: Path | None = write_metadata_file(sections) if markers else None
+            ffmpeg_args = [self.tools.ffmpeg, "-hide_banner", "-y" if overwrite else "-n"]
+            for section in sections:
+                ffmpeg_args.extend(["-i", str(section.input_path)])
+            if metadata_path is not None:
+                ffmpeg_args.extend(["-i", str(metadata_path)])
+            ffmpeg_args.extend(
+                [
+                    "-filter_complex",
+                    build_filter_complex(sections),
+                    "-map",
+                    "[outv]",
+                    "-map",
+                    "[outa]",
+                ]
+            )
+            if metadata_path is not None:
+                ffmpeg_args.extend(
+                    [
+                        "-map_metadata",
+                        str(len(sections)),
+                        "-movflags",
+                        "use_metadata_tags",
+                    ]
+                )
+            ffmpeg_args.extend(["-c:v", "libx264", "-c:a", "aac", str(target)])
+
+            try:
+                run_ffmpeg(ffmpeg_args)
+                return target
+            finally:
+                if metadata_path is not None:
+                    metadata_path.unlink(missing_ok=True)
+
         with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as handle:
             for source in sources:
                 normalized = source.as_posix().replace("'", "'\\''")
@@ -363,3 +439,9 @@ class VideoEditingService:
 
 
 DEFAULT_SERVICE = VideoEditingService()
+
+
+def _normalize_marker_text(raw_text: str) -> str:
+    collapsed = re.sub(r"[_-]+", " ", raw_text)
+    collapsed = re.sub(r"\s+", " ", collapsed)
+    return collapsed.strip()
