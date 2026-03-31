@@ -21,6 +21,12 @@ Build from a folder of videos:
 video-edit concat output.mp4 --input-dir clips
 ```
 
+Concatenate from a playlist manifest:
+
+```bash
+video-edit concat output.mp4 --playlist examples/manifests/concat-playlist.v1.json
+```
+
 Generate a manifest-style JSON preview instead of rendering:
 
 ```bash
@@ -65,6 +71,7 @@ examples/manifests/concat-playlist.v1.json
 - `--json-preview` is useful when you want a quick generated playlist that you can reorder and edit by hand
 - bare preview is optimized for quick cleanup and reordering
 - full preview is optimized for exposing the editable structure and available knobs up front
+- Validate playlist manifests with `video-edit validate ...` before rendering from `--playlist`
 - In v1 planning, quick mode may grow support for:
   - optional black spacers between clips
   - optional clip-start markers derived from normalized filenames
@@ -79,3 +86,4 @@ examples/manifests/concat-playlist.v1.json
   - per-item `start`, `end`, or `duration`
   - per-item markers
   - defaults plus per-item overrides for spacer and audio fade values
+- See [Manifest Formats](../MANIFESTS.md) for the concat playlist manifest structure

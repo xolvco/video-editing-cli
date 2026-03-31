@@ -131,6 +131,8 @@ python -m video_editing_cli probe input.mp4
 ```
 
 For a broader usage guide, see `docs/USAGE.md`.
+For a step-by-step first run, see `docs/QUICKSTART.md`.
+For the current concat playlist workflow, see `docs/CONCAT_PLAYLIST_GUIDE.md`.
 For manifest formats, see `docs/MANIFESTS.md`.
 For the current design direction, see `docs/ARCHITECTURE_SESSION.md` and `BACKLOG.md`.
 For the testing strategy, see `docs/TEST_PLAN.md`.
@@ -152,6 +154,7 @@ service.trim_video(
 ```
 
 More complete integration examples live in `examples/python/`.
+That directory now also includes a concat playlist manifest example generator in `examples/python/concat_playlist_workflow.py`.
 
 ## PowerShell usage
 

@@ -17,6 +17,12 @@ This is useful when you want to inspect:
 video-edit plan manifest.json output.mp4
 ```
 
+Example:
+
+```bash
+video-edit plan examples/manifests/timeline.v1.json output.mp4
+```
+
 Override manifest timing values from the CLI if needed:
 
 ```bash
@@ -40,3 +46,5 @@ Example fields include:
 - `plan` does not render media
 - `plan` currently targets the same timeline manifests used by `assemble`
 - referenced source files must exist so the plan can be resolved
+- Use `plan` after `validate` when you want to inspect the resolved output before rendering
+- See [Manifest Formats](../MANIFESTS.md) for the timeline manifest structure

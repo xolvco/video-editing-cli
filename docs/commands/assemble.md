@@ -17,6 +17,12 @@ This command is aimed at workflows like:
 video-edit assemble manifest.json output.mp4
 ```
 
+Example:
+
+```bash
+video-edit assemble examples/manifests/timeline.v1.json output.mp4
+```
+
 Override manifest timing values from the CLI if needed:
 
 ```bash
@@ -66,7 +72,7 @@ video-edit assemble manifest.json output.mp4 --gap-seconds 2 --audio-fade-second
 }
 ```
 
-See `docs/MANIFESTS.md` for the full schema.
+See [Manifest Formats](../MANIFESTS.md) for the full schema.
 
 ## Timeline section fields
 
@@ -82,3 +88,4 @@ See `docs/MANIFESTS.md` for the full schema.
 - Sections can reuse cuts from the same source file multiple times and reassemble them in a new order
 - The command currently assumes each input has both video and audio streams
 - Because it uses filters for padding and fades, the output is re-encoded
+- A common workflow is `validate` -> `plan` -> `assemble`

@@ -111,7 +111,7 @@ video-edit assemble examples/manifests/timeline.v1.json output.mp4
 ```
 
 The manifest can describe cuts from longer source files with versioned `sources`, `cuts`, and `sections`.
-For the versioned manifest schema, see `docs/MANIFESTS.md`.
+For the versioned manifest schema, see [Manifest Formats](MANIFESTS.md).
 
 ## Common workflow
 
@@ -123,14 +123,19 @@ For manifest-driven editing, the typical sequence is:
 
 For quick concat work, start with direct files or `--input-dir`, then use `--json-preview` when you want an editable playlist scaffold.
 
+## Guided walkthroughs
+
+- [Quickstart](QUICKSTART.md): novice-first PowerShell walkthrough
+- [Concat Playlist Guide](CONCAT_PLAYLIST_GUIDE.md): manifest-focused concat guide
+
 ## Command reference
 
-Detailed command pages live in `docs/commands/`.
+Detailed command pages live in the command reference section below.
 
-- `docs/commands/probe.md`
-- `docs/commands/validate.md`
-- `docs/commands/plan.md`
-- `docs/commands/trim.md`
-- `docs/commands/concat.md`
-- `docs/commands/extract_audio.md`
-- `docs/commands/assemble.md`
+- [Probe](commands/probe.md)
+- [Validate](commands/validate.md)
+- [Plan](commands/plan.md)
+- [Trim](commands/trim.md)
+- [Concat](commands/concat.md)
+- [Extract Audio](commands/extract_audio.md)
+- [Assemble](commands/assemble.md)
