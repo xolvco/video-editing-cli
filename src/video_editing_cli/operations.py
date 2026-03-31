@@ -3,11 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable
 
-from .service import DEFAULT_SERVICE
+from .service import DEFAULT_SERVICE, ManifestValidationResult
 
 
 def probe_media(input_path: Path) -> dict:
     return DEFAULT_SERVICE.probe_media(input_path)
+
+
+def validate_manifest(manifest_path: Path) -> ManifestValidationResult:
+    return DEFAULT_SERVICE.validate_manifest(manifest_path)
 
 
 def trim_video(

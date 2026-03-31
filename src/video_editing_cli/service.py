@@ -17,7 +17,7 @@ from .assembly import (
     write_metadata_file,
 )
 from .ffmpeg import run_ffmpeg, run_ffprobe, validate_existing_file
-from .manifests import load_json_document, parse_timeline_manifest
+from .manifests import load_json_document, parse_cut_list_manifest, parse_timeline_manifest
 
 
 @dataclass(frozen=True)
@@ -26,11 +26,48 @@ class FFmpegTools:
     ffprobe: str = "ffprobe"
 
 
+@dataclass(frozen=True)
+class ManifestValidationResult:
+    manifest_type: str
+    manifest_path: Path
+    source_count: int
+    cut_count: int
+    section_count: int | None = None
+
+
 class VideoEditingService:
     """Reusable high-level interface for FFmpeg-backed workflows."""
 
     def __init__(self, tools: FFmpegTools | None = None) -> None:
         self.tools = tools or FFmpegTools()
+
+    def validate_manifest(self, manifest_path: Path | str) -> ManifestValidationResult:
+        resolved_manifest_path = Path(manifest_path).expanduser().resolve()
+        payload = load_json_document(resolved_manifest_path)
+
+        if "sections" in payload:
+            manifest = parse_timeline_manifest(payload)
+            manifest_type = "timeline"
+            section_count = len(manifest.sections)
+        elif "cuts" in payload and "sources" in payload:
+            manifest = parse_cut_list_manifest(payload)
+            manifest_type = "cut-list"
+            section_count = None
+        else:
+            raise ValueError("Could not determine manifest type. Expected a cut-list or timeline manifest.")
+
+        base_dir = resolved_manifest_path.parent
+        for source in manifest.sources.values():
+            source_path = source.path if source.path.is_absolute() else base_dir / source.path
+            validate_existing_file(source_path)
+
+        return ManifestValidationResult(
+            manifest_type=manifest_type,
+            manifest_path=resolved_manifest_path,
+            source_count=len(manifest.sources),
+            cut_count=len(manifest.cuts),
+            section_count=section_count,
+        )
 
     def probe_media(self, input_path: Path | str) -> dict:
         source = validate_existing_file(Path(input_path))
