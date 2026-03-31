@@ -21,6 +21,8 @@ The value of this project should come from the layer above FFmpeg:
 - named visual look presets that help fast-cut edits feel more color-consistent
 - global audio mix presets with section-level exceptions for fast-cut assembly workflows
 - playlist-style concat workflows with optional markers and spacers for multi-video outputs
+- restrained text titles, embedded title styles, and simple branding overlays for polished outputs
+- simple credits pages and a final copyright frame for complete presentation workflows
 
 ## Design rule
 
@@ -61,3 +63,18 @@ In v1, concat should focus on playlist-style outputs:
 - optional clip-start markers for navigation
 - source-relative trim timing per clip in playlist mode
 - simple global defaults in quick mode, with more refined per-item control in JSON
+
+## Presentation direction
+
+The library should support a small set of tasteful presentation features for labeling and branding rendered outputs.
+
+In v1, this should include:
+
+- text-first clip or section titles with transparent rendering over video
+- reusable title styles embedded directly in the manifest
+- anchor-based placement with offsets for easy iteration
+- optional accent lines for restrained editorial styling
+- a branding bug modeled as a transparent PNG with size, location, opacity, and timing
+- an optional intro card with a black default background or a supplied branding video, plus simple program-title text
+- optional paged credits on a color, image, or video background
+- a separate copyright closing frame with small anchored text

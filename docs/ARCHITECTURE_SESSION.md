@@ -83,6 +83,7 @@ Fields:
 
 - `cut_id` or inline source reference
 - `title`
+- `title_style`
 - `gap_after_seconds`
 - `audio_fade_in_seconds`
 - `audio_fade_out_seconds`
@@ -102,6 +103,8 @@ Fields:
 - `sections`
 - `defaults`
 - `audio`
+- `title_styles`
+- `branding`
 - `output`
 
 ### `RenderPreset`
@@ -174,6 +177,116 @@ Fields:
 - `offset`
 - `gain_db`
 
+### `TitleStyle`
+
+Represents a reusable text-title style embedded in the manifest.
+
+Fields:
+
+- `id`
+- `anchor`
+- `offset_x`
+- `offset_y`
+- `font_family`
+- `font_size`
+- `color`
+- `opacity`
+- `max_width`
+- `reveal_style`
+- `accent_line`
+
+### `AccentLine`
+
+Represents an optional graphic line paired with a title.
+
+Fields:
+
+- `placement`
+- `line_width`
+- `thickness`
+- `color`
+- `opacity`
+
+### `BrandingBug`
+
+Represents a branding mark overlaid on the rendered output.
+
+Fields:
+
+- `path`
+- `anchor`
+- `offset_x`
+- `offset_y`
+- `width`
+- `opacity`
+- `start`
+- `duration`
+
+### `IntroCard`
+
+Represents an opening title/background sequence before the main playlist or timeline.
+
+Fields:
+
+- `background_mode`
+- `background_path`
+- `duration`
+- `titles`
+
+### `ProgramTitle`
+
+Represents one title shown on the opening title card.
+
+Fields:
+
+- `text`
+- `size_preset`
+- `font_family`
+- `color`
+- `opacity`
+- `start`
+- `duration`
+- `anchor`
+
+### `CreditsSequence`
+
+Represents a simple end-of-video credits presentation.
+
+Fields:
+
+- `background_mode`
+- `background_path`
+- `page_duration`
+- `anchor`
+- `entries`
+
+### `CreditEntry`
+
+Represents one role/name pair in the credits.
+
+Fields:
+
+- `role`
+- `name`
+- `role_font_size`
+- `name_font_size`
+
+### `CopyrightFrame`
+
+Represents the final copyright or legal closing notice shown after the main program and optional credits.
+
+Fields:
+
+- `text`
+- `anchor`
+- `font_family`
+- `font_size`
+- `color`
+- `opacity`
+- `background_mode`
+- `background_path`
+- `duration`
+
 ### `RenderMode`
 
 Represents whether the output is optimized for speed or quality.
@@ -236,6 +349,8 @@ Responsibility:
 - resolve render presets
 - resolve look presets and harmonization policy
 - resolve audio bed, normalization, and section mix policy
+- resolve title styles, branding bug placement, and intro card presentation
+- resolve credits pagination and copyright closing-frame presentation
 - compute chapter markers
 - compute transitions, gaps, fades, and overlays
 - optionally nudge cuts for cue-aligned timing later
@@ -254,6 +369,8 @@ Responsibility:
 - support preview and final render modes
 - apply global look presets and clip-to-clip harmonization
 - normalize and mix soundtrack audio with section audio according to policy
+- render text titles, branding bugs, and intro-card overlays
+- render credits pages and final copyright frame
 - optionally create prepared intermediate assets
 - render output
 - optionally dry-run and print plans
@@ -397,12 +514,74 @@ Example shape:
     "audio_fade_in_seconds": 0.35,
     "audio_fade_out_seconds": 0.35
   },
+  "title_styles": {
+    "clean-lower-left": {
+      "anchor": "bottom-left",
+      "font_family": "Aptos",
+      "font_size": 42,
+      "color": "#FFFFFF",
+      "opacity": 0.92,
+      "reveal_style": "static",
+      "accent_line": {
+        "placement": "above",
+        "line_width": 220,
+        "thickness": 3,
+        "color": "#FFFFFF",
+        "opacity": 0.92
+      }
+    }
+  },
+  "branding": {
+    "bug": {
+      "path": "branding/bug.png",
+      "anchor": "top-right",
+      "width": 180,
+      "opacity": 0.8
+    },
+    "intro_card": {
+      "background_mode": "black",
+      "duration": 4.0,
+      "titles": [
+        {
+          "text": "Summer Mix 2026",
+          "size_preset": "huge",
+          "anchor": "center"
+        }
+      ]
+    }
+  },
+  "credits": {
+    "background_mode": "color",
+    "page_duration": 4.0,
+    "anchor": "center",
+    "entries": [
+      {
+        "role": "Performer",
+        "name": "Ava"
+      },
+      {
+        "role": "Edited by",
+        "name": "Bruce Kyle"
+      }
+    ]
+  },
+  "copyright": {
+    "text": "Copyright 2026 Xolv LLC. All rights reserved.",
+    "anchor": "bottom-center",
+    "font_size": 18,
+    "color": "#FFFFFF",
+    "opacity": 0.9,
+    "background_mode": "black",
+    "duration": 3.0
+  },
   "items": [
     {
       "path": "clips/intro.mp4",
       "start": "00:00:03.000",
       "end": "00:00:18.000",
-      "marker": "Intro"
+      "marker": "Intro",
+      "title": "Ava",
+      "title_style": "clean-lower-left"
     },
     {
       "path": "clips/topic-a.mp4",
@@ -561,6 +740,56 @@ Reason:
 - playlist-style outputs benefit from chapter-like navigation to favorite segments
 - clip timing remains source-relative while marker placement is resolved on the final assembled timeline
 
+### Decision 15
+
+V1 titles should be text-first, restrained, and style-driven.
+
+Reason:
+
+- most built-in motion-title presets in editors are visually noisy and not a good default for this product
+- users need a clean way to label performers, clips, and sequences without gimmicky animation
+- reusable title styles embedded in the manifest make experimentation portable and easier to manage
+
+### Decision 16
+
+V1 title styles should live inside the manifest, not in separate style files.
+
+Reason:
+
+- too many sidecar files are easy to mishandle
+- keeping styles with the edit plan improves portability and reuse
+- embedded styles are simpler to validate, copy, and version
+
+### Decision 17
+
+Branding bugs and opening title cards should be modeled separately from clip titles.
+
+Reason:
+
+- clip titles, persistent branding, and whole-program titling are different editorial concepts
+- separate models keep defaults simple while still supporting real publishing workflows
+- shared positioning and styling conventions still allow the system to feel consistent
+
+### Decision 18
+
+V1 credits should be simple paged cards, not rolling or table-based layouts.
+
+Reason:
+
+- clean static or paged credits are easier to make look good consistently
+- stacked role/name pairs fit the v1 goal of tasteful defaults without complex layout logic
+- multi-column layouts, dotted leader lines, and richer credit choreography can come later
+
+### Decision 19
+
+Copyright should be modeled as a separate final closing frame.
+
+Reason:
+
+- copyright is a legal or brand notice, not the same thing as editorial credits
+- a dedicated closing frame is clearer and easier to reuse in commercial workflows
+- keeping it separate avoids overloading the credits layout with unrelated responsibilities
+
 ## Output contract
 
 Recommended primary outputs:
@@ -645,6 +874,20 @@ Initial concat direction:
 - allow playlist items to define source-relative start/end timing and simple per-item audio fade overrides
 - reserve more advanced per-item spacer behavior, internal markers, and title treatment for later versions
 
+Initial title and branding direction:
+
+- support one text title per clip or section in v1
+- keep native titles text-only with transparent rendering over video
+- support restrained reveal styles such as `static` and `typewriter`
+- support reusable `title_styles` embedded directly in the manifest
+- use anchor-based positioning with offsets for iterative layout tuning
+- support an optional accent line with placement above, below, left, or right of the text
+- support a manifest-level branding bug using a transparent PNG with size, placement, opacity, and timing
+- support an optional intro card with a black background by default and an optional branded video background
+- support one or more program titles on the intro card using simple size presets such as `huge`, `medium`, and `subdued`
+- support optional simple paged credits on a color, image, or video background
+- support a separate final copyright frame with small anchored text on a closing screen
+
 ### V2
 
 V2 should extend the backbone into more differentiated composition and timing capabilities.
@@ -659,6 +902,16 @@ Goals:
 - optional prepared intermediates for safer editing and reuse
 - cue-aligned cut resolution
 - deeper color tooling such as advanced correction and custom palette definitions
+
+V2 presentation refinement should include:
+
+- multiple titles per clip or section instead of only one
+- more detailed title timing and layout control
+- optional overlay media for advanced custom title treatments
+- richer scheduling for branding bugs beyond simple start/duration behavior
+- side-by-side or table-based credits layouts
+- dotted leader-line or other more stylized credit treatments
+- more advanced copyright and legal closing layouts
 
 V2 audio refinement should include:
 
