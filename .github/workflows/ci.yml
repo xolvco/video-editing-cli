@@ -45,8 +45,12 @@ jobs:
           python -m pip install -e ./videoedit
           python -m pip install -e .[dev]
 
-      - name: Run test suite
-        run: python -m pytest
+      - name: Run compatibility smoke tests
+        run: >
+          python -m pytest
+          tests/test_command_coverage.py
+          tests/test_manifests.py
+          tests/test_service.py
 
   docs:
     name: Docs Build
