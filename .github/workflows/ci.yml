@@ -20,12 +20,19 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Check out videoedit
-        uses: actions/checkout@v4
-        with:
-          repository: xolvco/videoedit
-          path: videoedit
-          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+      - name: Fetch videoedit
+        shell: bash
+        env:
+          CROSS_REPO_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+        run: |
+          if [ -n "$CROSS_REPO_TOKEN" ]; then
+            git clone --depth 1 --branch main "https://x-access-token:${CROSS_REPO_TOKEN}@github.com/xolvco/videoedit.git" videoedit
+          else
+            git clone --depth 1 --branch main https://github.com/xolvco/videoedit.git videoedit || {
+              echo "::error::Unable to fetch xolvco/videoedit. Make the repo public or add a CROSS_REPO_TOKEN secret with read access."
+              exit 1
+            }
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
