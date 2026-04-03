@@ -12,6 +12,9 @@ license = { text = "MIT" }
 authors = [
   { name = "Bruce" }
 ]
+dependencies = [
+  "videoedit @ git+https://github.com/xolvco/videoedit.git@main"
+]
 keywords = ["video", "ffmpeg", "cli", "editing"]
 classifiers = [
   "Development Status :: 3 - Alpha",
