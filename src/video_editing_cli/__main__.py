@@ -1,5 +1,5 @@
-from .cli import main
+from ._videoedit_bootstrap import ensure_videoedit_on_path
 
+ensure_videoedit_on_path()
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+from videoedit.__main__ import *  # noqa: F401,F403

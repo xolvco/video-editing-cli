@@ -1,17 +1,7 @@
-"""Reusable FFmpeg-backed video editing helpers."""
+"""Compatibility wrapper for the unified videoedit backend."""
 
-from .operations import concat_videos, extract_audio, probe_media, trim_video
-from .operations import assemble_from_manifest
-from .service import FFmpegTools, VideoEditingService
+from ._videoedit_bootstrap import ensure_videoedit_on_path
 
-__all__ = [
-    "FFmpegTools",
-    "VideoEditingService",
-    "assemble_from_manifest",
-    "concat_videos",
-    "extract_audio",
-    "probe_media",
-    "trim_video",
-]
+ensure_videoedit_on_path()
 
-__version__ = "0.1.0"
+from videoedit import *  # noqa: F401,F403

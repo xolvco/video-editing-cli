@@ -1,7 +1,5 @@
-"""Command registry for the video-edit CLI."""
+from .._videoedit_bootstrap import ensure_videoedit_on_path
 
-from . import assemble, concat, extract_audio, plan, probe, trim, validate
+ensure_videoedit_on_path()
 
-COMMAND_MODULES = [probe, trim, concat, extract_audio, assemble, validate, plan]
-
-__all__ = ["COMMAND_MODULES"]
+from videoedit.commands import *  # noqa: F401,F403
